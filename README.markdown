@@ -23,7 +23,7 @@ Once configured navigate to the index.html URL on your device and attempt to sta
 I have had spotty experience with HLS streaming on Android devices. On iOS, it seems to work best playing the stream in Safari. Other browsers work but sometimes not as reliably or smoothly as Safari.
 
 ## Screenshots
-![Screenshot 1](http://i.imgur.com/Xz3gt5a.png)![Screenshot 2](http://i.imgur.com/pTWCmHd.png)![Screenshot 3](http://i.imgur.com/zWMGDS8.png)
+![Screenshot 1](http://i.imgur.com/Xz3gt5a.png) ![Screenshot 2](http://i.imgur.com/pTWCmHd.png) ![Screenshot 3](http://i.imgur.com/zWMGDS8.png)
 
 ## License
 
