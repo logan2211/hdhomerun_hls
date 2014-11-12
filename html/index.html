@@ -1,0 +1,249 @@
+<html lang="en">
+<head>
+<title>iPtv</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no" />
+
+<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+
+<link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jquerymobile/1.4.3/jquery.mobile.min.css" />
+<link rel="stylesheet" href="stream.css" />
+<script src="//ajax.googleapis.com/ajax/libs/jquerymobile/1.4.3/jquery.mobile.min.js"></script>
+</head>
+<body>
+<div data-role="page" id="page">
+	<div class="ui-loader-background"></div>
+	<div data-role="popup" id="popup" class="ui-content" data-theme="b">A channel must be selected before starting the stream.</div>
+	<div data-role="navbar" class="ui-bar-b">
+		<input id="togglevlc" type="checkbox" data-role="flipswitch" data-theme="a"></input>
+		<div class="ui-btn-right ui-btn-inline"><input id="advsettingsbtn" data-icon="gear" data-iconpos="right" type="button" value="Advanced Settings"></input></div><br />
+		<select id="channel" data-icon="bars" data-iconpos="left">
+			<option value="0">Select Channel</option>
+		</select>
+	</div>
+
+	<div data-role="panel" id="advsettings" data-position="right" data-display="overlay" data-theme="b" data-swipe-close="true">
+		<form>
+		<div class="ui-btn-left ui-btn-inline">
+			<input id="advsettingsreset" type="reset" data-icon="back" data-iconpos="left" data-mini="true" value="Reset" />
+		</div>
+		<div class="ui-btn-right ui-btn-inline">
+			<input id="advsettingsclose" type="button" data-icon="arrow-r" data-iconpos="right" data-mini="true" value="Close"></input>
+		</div><br />
+		<div>
+			<input type="checkbox" id="deinterlace" value="true" checked />
+			<label for="deinterlace">Deinterlace</label>
+		</div>
+		<h2>Encoder Profiles</h2>
+		<div id="profilecontainer">
+		</div>
+		</form>
+	</div>
+	
+	<div data-role="content">
+		<div id="videocontainer" class="center-wrapper"></div>
+	</div>
+</div>
+
+
+<script type="text/javascript">
+var current_channel = null;
+var streamstate = 'unknown';
+var state_refresh_interval = 5; //seconds between refreshes
+var state_refresh = null;
+
+jQuery(document).on('pageinit', function() {	
+	jQuery.ajaxSetup({
+		url: 'callback.php',
+		type: 'POST',
+		dataType: 'json',
+		timeout: state_refresh_interval*1000
+	});
+	
+	//disable everything until we get our state
+	loading("show");
+	jQuery("#videocontainer").hide();
+	jQuery("#channel").selectmenu().selectmenu("disable");
+	jQuery("#togglevlc").flipswitch().flipswitch("disable");
+	jQuery("#advsettingsbtn").button().button("disable");
+	
+	jQuery("#advsettingsbtn").click(function () {
+		jQuery("div#advsettings").panel("open");
+	});
+	jQuery("#advsettingsclose").click(function () { jQuery("div#advsettings").panel("close")});
+	
+	update_channel_lineup();
+	update_profiles();
+	refresh_state();
+	
+	jQuery(".ui-flipswitch").on('click', function (e) {
+		loading("show");
+		if (streamstate == 'running') {
+			//vlc needs to be stopped!
+			jQuery.ajax({
+				data: { type: 'stop_stream' },
+				complete: function (x,s) {
+					state_refresh = setTimeout('refresh_state();', 500);
+				}
+			});
+		}
+		else if (streamstate == 'stopped') {
+			//need to start encoder
+			set_channel(jQuery('#channel').val());	
+		}
+	});
+});
+
+function loading(showOrHide, msg, loaderbg) {
+	if (msg == null) msg = "Loading";
+	if (showOrHide == "show") {
+		if (loaderbg != false) jQuery("#page").append('<div class="ui-loader-background"></div>');
+	}
+	else if (showOrHide == "hide") {
+		jQuery("div.ui-loader-background").remove();
+	}
+
+	setTimeout(function() {
+		jQuery.mobile.loading(showOrHide, {
+			text: msg,
+			textVisible: true,
+			theme: 'b',
+		});
+	}, 1);
+}
+
+function set_channel(c) {
+	if (c == "0") {
+		//the user did not select a channel
+		loading("hide");
+		jQuery("#togglevlc").prop('checked', false).flipswitch("refresh").flipswitch("enable");
+		jQuery('#popup').popup("open");
+		return;
+	}
+	
+	var profiles = new Object;
+	jQuery('input:checkbox', '#profilecontainer').each(function(name) {
+		var name = jQuery(this).attr('id');
+		if (jQuery(this).prop("checked")) {
+			//profile is enabled
+			profiles[name] = true;
+		} else {
+			//profile is not enabled
+			profiles[name] = false;
+		}
+	});
+	profiles = JSON.stringify(profiles);
+
+	if (jQuery('#deinterlace').prop("checked") == true) var deinterlace = true;
+	else var deinterlace = false;
+	
+	jQuery.ajax({
+		data: { type: 'set_channel', channel: c, deinterlace: deinterlace, profiles: profiles },
+		complete: function (x,s) {
+			state_refresh = setTimeout('refresh_state();', 500);
+		}
+	});
+}
+function refresh_state() {
+	state_refresh = setTimeout('refresh_state();', state_refresh_interval*1000);
+	jQuery.ajax({
+		data: ({ type: 'status' }),
+		success: function (d,s,x) {
+			if (d.vlcstatus == true) {
+				//encoder is running
+				if (streamstate != "running") {
+					//this is a state change not a state update.
+					loading("hide");
+					jQuery("#togglevlc").prop("checked", true).flipswitch("refresh").flipswitch("enable");
+					jQuery("#channel").selectmenu("disable");
+					jQuery("#advsettingsbtn").button("disable");
+					jQuery("div#advsettings").panel("close");
+					if (jQuery("#videocontainer").text() == '')
+						loading("show", "Video will begin shortly", false);
+						init_video_stream();
+				}
+				current_channel = d.channel;
+				jQuery("#channel").val(current_channel).selectmenu("refresh");
+				streamstate = "running";
+			} else {
+				//encoder is not running
+				if (streamstate != "stopped") {
+					//it used to be running or unknown
+					loading("hide");
+					jQuery("#videocontainer").hide();
+					jQuery("#togglevlc").prop("checked", false).flipswitch("refresh").flipswitch("enable");
+					jQuery("#channel").selectmenu("enable");
+					jQuery("#advsettingsbtn").button("enable");
+					jQuery("#videocontainer").text('');
+				}
+				streamstate = "stopped";
+			}
+		},
+		complete: function(x, s) {
+			if (s == "success") return;
+			//if we get here the ajax call failed
+			jQuery("#togglevlc").flipswitch("disable");
+			jQuery("#channel").selectmenu("disable");
+			streamstate = "unknown";
+		}
+	});
+}
+
+function init_video_stream() {
+	if (document.getElementById("stream") != null) {
+		var readystate = document.getElementById("stream").readyState;
+	}
+	if (readystate < 1 || readystate == undefined || readystate == null) {
+		jQuery("#videocontainer").html('<video id="stream" src="stream.m3u8" controls></video>');
+		setTimeout("init_video_stream();", 1000);
+	} else {
+		jQuery("#videocontainer").show();
+		document.getElementById("stream").play();
+		loading("hide");
+	}
+}
+
+function update_channel_lineup() {
+	jQuery.ajax({
+		data: ({ type: 'lineup' }),
+		dataType: 'xml',
+		success: function (d,s,x) {
+			d = d.getElementsByTagName('Program');
+			var options = '';
+			for (var i=0; i<d.length; i++) {
+				var channel_num = d[i].getElementsByTagName('GuideNumber')[0].textContent;
+				var channel_name = d[i].getElementsByTagName('GuideName')[0].textContent;
+				if (channel_num < 500 || channel_num > 835) continue;
+				var options = options + '<option value="'+channel_num+'">'+channel_name+' ('+channel_num+')</option>';
+			}
+			jQuery('#channel').html('<option value="0">Select Channel</option>'+options);
+		},
+		complete: function(x,s) {
+			if (s=='success') return;
+			//ajax failed if we get here.
+			alert('Failed to load channel lineup');
+		}
+	});
+}
+
+function update_profiles() {
+	jQuery.ajax({
+		data: { type: 'get_profiles' },
+		success: function (d,s,x) {
+			var html = '';
+			for (i in d) {
+				var p = d[i];
+				html = html + '<input type="checkbox" id="'+p.name+'"';
+				if (p.settings.enabled == true) html = html + ' checked';
+				var displaytag = p.name+' '+p.settings.width+'x'+p.settings.height+' '+p.settings.profile;
+				html = html + ' data-mini="true" /><label for="'+p.name+'">'+displaytag+'</label>';
+			}
+			jQuery("#profilecontainer").html(html);
+			jQuery("#profilecontainer > input:checkbox").checkboxradio({ defaults: true });
+		}
+	});
+}
+</script>
+</body>
+</html>

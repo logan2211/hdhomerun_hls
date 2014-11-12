@@ -1,0 +1,21 @@
+#!/usr/bin/php
+<?php
+require('../hdhrstream.class.php');
+$h = new HDHRStream;
+
+switch ($argv[1]) {
+	case 'start':
+		$h->start_stream($argv[2]);
+	break;
+	case 'change':
+		$h->change_channel($argv[2]);
+	break;
+	case 'stop':
+		$h->stop_stream();
+	break;
+	case 'listchannels':
+		$h->get_channel_lineup();
+		print_r($h->lineup);
+	break;
+}
+?>
