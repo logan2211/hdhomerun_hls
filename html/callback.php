@@ -4,7 +4,7 @@ $h = new HDHRStream;
 
 switch ($_REQUEST['type']) {
 	case 'status':
-		if ($h->check_vlc_running()) {
+		if ($h->check_enc_running()) {
 			$channel = $h->get_my_channel();
 			returnJSON(array(
 				'vlcstatus' => true,
