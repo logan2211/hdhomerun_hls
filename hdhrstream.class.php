@@ -35,7 +35,7 @@ class HDHRStream {
 			'height' => '234',
 			'vb' => '200',
 			'ab' => '32',
-			'preset' => 'faster', //ultrafast,superfast,veryfast,faster,fast,medium,slow,slower,veryslow,placebo
+			'preset' => 'medium', //ultrafast,superfast,veryfast,faster,fast,medium,slow,slower,veryslow,placebo
 			'profile' => 'baseline', //baseline,main,high,high10,high422,high444
 			'enabled' => true
 		),
@@ -44,8 +44,8 @@ class HDHRStream {
 			'height' => '234',
 			'vb' => '400',
 			'ab' => '48',
-			'preset' => 'fast',
-			'profile' => 'baseline',
+			'preset' => 'medium',
+			'profile' => 'main',
 			'enabled' => true
 		),
 		'600k' => array( //600k
@@ -63,7 +63,7 @@ class HDHRStream {
 			'vb' => '1200',
 			'ab' => '64',
 			'preset' => 'medium',
-			'profile' => 'main',
+			'profile' => 'high',
 			'enabled' => true
 		),
 		'1800k' => array( //1800k lots of CPU
@@ -72,7 +72,7 @@ class HDHRStream {
 			'vb' => '1800',
 			'ab' => '64',
 			'preset' => 'medium',
-			'profile' => 'main',
+			'profile' => 'high',
 			'enabled' => false
 		),
 		'2500k' => array( //2500k 720p high cpu+bw
@@ -81,7 +81,7 @@ class HDHRStream {
 			'vb' => '2500',
 			'ab' => '96',
 			'preset' => 'medium',
-			'profile' => 'main',
+			'profile' => 'high',
 			'enabled' => false
 		),
 		'4500k' => array( //4500k 720p high cpu+bw
@@ -90,7 +90,7 @@ class HDHRStream {
 			'vb' => '4500',
 			'ab' => '96',
 			'preset' => 'medium',
-			'profile' => 'main',
+			'profile' => 'high',
 			'enabled' => false
 		)
 	);
@@ -100,7 +100,7 @@ class HDHRStream {
 		'ab' => '64',
 		'deinterlace' => true,
 		'preset' => 'medium',
-		'profile' => 'baseline',
+		'profile' => 'high',
 		'level' => '41', //https://trac.ffmpeg.org/wiki/Encode/H.264#Alldevices
 		'fps' => '30',
 		'seglen' => '10',
