@@ -1,6 +1,11 @@
 <html lang="en">
 <head>
 <title>iPtv</title>
+<script type="text/javascript">
+	var channel_filter = false; //enable or disable the channel display filter.
+	var channel_filter_min = 500;
+	var channel_filter_max = 835;
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no" />
@@ -214,7 +219,7 @@ function update_channel_lineup() {
 			for (var i=0; i<d.length; i++) {
 				var channel_num = d[i].getElementsByTagName('GuideNumber')[0].textContent;
 				var channel_name = d[i].getElementsByTagName('GuideName')[0].textContent;
-				if (channel_num < 500 || channel_num > 835) continue;
+				if (channel_filter == true && (channel_num < channel_filter_min || channel_num > channel_filter_max)) continue;
 				var options = options + '<option value="'+channel_num+'">'+channel_name+' ('+channel_num+')</option>';
 			}
 			jQuery('#channel').html('<option value="0">Select Channel</option>'+options);
