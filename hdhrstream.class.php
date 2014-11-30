@@ -164,9 +164,17 @@ class HDHRStream {
 		$pid = $this->check_enc_running();
 		if ($pid === false) return true;
 		//encoder should be running if we get here, but we may not have permission to kill it.
+		//get my tuner so it can be unlocked after the encoder is killed
+		$this->tuner = $this->get_my_tuner();
 		if (!posix_kill($pid, 15)) {
 			$errno = posix_get_last_error();
 			throw new Exception("Could not kill encoder: ".posix_strerror($errno)." ($errno)");
+		}
+		//unlock tuner
+		if (!empty($this->tuner)) {
+			$hdhr_id = escapeshellarg($this->hdhr_id);
+			$lockkey = escapeshellarg($this->lockkey);
+			exec_command("hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/lockkey none");
 		}
 		return true;
 	}
