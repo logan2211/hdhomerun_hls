@@ -15,6 +15,9 @@
 <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jquerymobile/1.4.3/jquery.mobile.min.css" />
 <link rel="stylesheet" href="stream.css" />
 <script src="//ajax.googleapis.com/ajax/libs/jquerymobile/1.4.3/jquery.mobile.min.js"></script>
+
+<!-- Load Chromecast sender -->
+<script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
 </head>
 <body>
 <div data-role="page" id="page">
@@ -22,6 +25,7 @@
 	<div data-role="popup" id="popup" class="ui-content" data-theme="b">A channel must be selected before starting the stream.</div>
 	<div data-role="navbar" class="ui-bar-b">
 		<input id="togglevlc" type="checkbox" data-role="flipswitch" data-theme="a"></input>
+		<img style="display: none; padding-left: 5px;" id="casticon" src="images/cast.svg"></img>
 		<div class="ui-btn-right ui-btn-inline"><input id="advsettingsbtn" data-icon="gear" data-iconpos="right" type="button" value="Advanced Settings"></input></div><br />
 		<select id="channel" data-icon="bars" data-iconpos="left">
 			<option value="0">Select Channel</option>
@@ -58,7 +62,12 @@ var streamstate = 'unknown';
 var state_refresh_interval = 5; //seconds between refreshes
 var state_refresh = null;
 
-jQuery(document).on('pageinit', function() {	
+jQuery(document).on('pageinit', function() {
+	var session = null;
+	var currentVolume = 0.5;
+	var currentMediaSession = null;
+	var videoloader_timeout = null;
+	
 	jQuery.ajaxSetup({
 		url: 'callback.php',
 		type: 'POST',
@@ -97,6 +106,11 @@ jQuery(document).on('pageinit', function() {
 			//need to start encoder
 			set_channel(jQuery('#channel').val());	
 		}
+	});
+	
+	jQuery('#casticon').on('click', function (e) {
+		chrome.cast.requestSession(onRequestSessionSuccess, onError);
+		
 	});
 });
 
@@ -201,7 +215,7 @@ function init_video_stream() {
 	}
 	if (readystate < 1 || readystate == undefined || readystate == null) {
 		jQuery("#videocontainer").html('<video id="stream" src="stream.m3u8" controls></video>');
-		setTimeout("init_video_stream();", 1000);
+		videoloader_timeout = setTimeout("init_video_stream();", 1000);
 	} else {
 		jQuery("#videocontainer").show();
 		document.getElementById("stream").play();
@@ -249,6 +263,83 @@ function update_profiles() {
 		}
 	});
 }
+
+
+if (!chrome.cast || !chrome.cast.isAvailable) {
+	setTimeout(initializeCastApi, 1000);
+}
+
+function initializeCastApi() {
+	var sessionRequest = new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID);
+	var apiConfig = new chrome.cast.ApiConfig(sessionRequest, sessionListener, receiverListener, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
+	chrome.cast.initialize(apiConfig, onInitSuccess, onError);
+}
+function onError(e) {
+  console.log('Cast Error' + e);
+}
+
+function sessionListener(e) {
+	session = e;
+		
+	if (session.media.length != 0) {
+		onMediaDiscovered('onRequestSessionSuccess', session.media[0]);
+	}
+}
+
+function receiverListener(e) {
+	if (e === chrome.cast.ReceiverAvailability.AVAILABLE) {
+		//show cast icon..
+		clearTimeout(videoloader_timeout);
+		loading("hide");
+		jQuery('#casticon').show();
+	}
+}
+
+function onInitSuccess() {
+	//nothing to do here yet.
+}
+
+function onRequestSessionSuccess(e) {
+	jQuery('#casticon').attr('src', 'images/cast_connected.svg');
+	session = e;
+	
+	//now that we have a session how about playing on it..
+	loadMedia();
+}
+
+function loadMedia() {
+	//get media path
+	var arr = window.location.href.split('/');
+	var trash = arr.pop();
+	arr = arr.join('/');
+	
+	var mediaURL = arr+'/stream.m3u8';
+	var contentType = 'application/x-mpegurl';
+	var mediaInfo = new chrome.cast.media.MediaInfo(mediaURL, contentType);
+	
+	//set metadata
+	var metadata = new chrome.cast.media.GenericMediaMetadata;
+	metadata.metadataType = chrome.cast.media.MetadataType.GENERIC;
+	metadata.title = 'iPTV Cast Player';
+	mediaInfo.metadata = metadata;
+	
+	
+	mediaInfo.streamType = chrome.cast.media.StreamType.LIVE;
+	var request = new chrome.cast.media.LoadRequest(mediaInfo);
+	request.autoplay = true;
+	request.currentTime = 0;
+	session.loadMedia(request, onMediaDiscovered.bind(this, 'loadMedia'), onError);
+}
+
+function onMediaDiscovered(how, media) {
+	media.addUpdateListener(onMediaStatusUpdate);
+}
+
+function onMediaStatusUpdate(isAlive) {
+	
+}
 </script>
+
+
 </body>
 </html>
