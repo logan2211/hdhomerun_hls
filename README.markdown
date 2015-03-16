@@ -2,6 +2,9 @@
 ## Intro
 This project is a web frontend to interface with the [HDHomeRun](http://www.silicondust.com/) products and [FFmpeg](https://www.ffmpeg.org/) in order to provide a mobile ready VBR [HLS live stream](http://en.wikipedia.org/wiki/HTTP_Live_Streaming) of a channel. [VLC](http://www.videolan.org/vlc/) is also supported for encoding instead of FFmpeg. Scroll down for images of this in action.
 
+###Update - Chromecast support
+This app is now updated to support casting to Chromecast devices using desktop Chrome. Start the stream in a Chrome browser with the cast extension installed and the icon will appear next to the on/off slider when cast devices are discovered.
+
 ## Prerequisites
 * PHP enabled webserver
 * [FFmpeg](https://www.ffmpeg.org/) with libx264 support OR [VLC](http://www.videolan.org/vlc/)
