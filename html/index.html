@@ -5,19 +5,45 @@
 	var channel_filter = false; //enable or disable the channel display filter.
 	var channel_filter_min = 500;
 	var channel_filter_max = 835;
+	var stream_wait_load = 15; //we give ffmpeg some time to populate segments before we play the video
 </script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no" />
 
-<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<!-- Load video.js -->
+<link href="//vjs.zencdn.net/4.12/video-js.css" rel="stylesheet">
+<script src="js/video-4.12.novtt.dev.min.js"></script>
 
-<link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jquerymobile/1.4.3/jquery.mobile.min.css" />
-<link rel="stylesheet" href="stream.css" />
-<script src="//ajax.googleapis.com/ajax/libs/jquerymobile/1.4.3/jquery.mobile.min.js"></script>
+<!-- Media Sources video.js plugin -->
+<script src="js/videojs-media-sources.js"></script>
+
+<!-- HLS plugin for video.js to play in flash on unsupported devices -->
+<script src="js/videojs-contrib-hls/videojs-hls.js"></script>
+<script src="js/videojs-contrib-hls/xhr.js"></script>
+<script src="js/videojs-contrib-hls/flv-tag.js"></script>
+<script src="js/videojs-contrib-hls/stream.js"></script>
+<script src="js/videojs-contrib-hls/exp-golomb.js"></script>
+<script src="js/videojs-contrib-hls/h264-stream.js"></script>
+<script src="js/videojs-contrib-hls/aac-stream.js"></script>
+<script src="js/videojs-contrib-hls/metadata-stream.js"></script>
+<script src="js/videojs-contrib-hls/segment-parser.js"></script>
+<script src="js/videojs-contrib-hls/m3u8/m3u8-parser.js"></script>
+<script src="js/videojs-contrib-hls/playlist-loader.js"></script>
+<script src="js/videojs-contrib-hls/bin-utils.js"></script>
 
 <!-- Load Chromecast sender -->
 <script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
+<!-- Video.js chromecast plugin -->
+<link href="css/videojs.chromecast.min.css" rel="stylesheet">
+<script src="js/videojs.chromecast.min.js"></script>
+
+<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
+
+<link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jquerymobile/1.4.3/jquery.mobile.min.css" />
+<link rel="stylesheet" href="css/stream.css" />
+<script src="//ajax.googleapis.com/ajax/libs/jquerymobile/1.4.3/jquery.mobile.min.js"></script>
 </head>
 <body>
 <div data-role="page" id="page">
@@ -25,7 +51,6 @@
 	<div data-role="popup" id="popup" class="ui-content" data-theme="b">A channel must be selected before starting the stream.</div>
 	<div data-role="navbar" class="ui-bar-b">
 		<input id="togglevlc" type="checkbox" data-role="flipswitch" data-theme="a"></input>
-		<img style="display: none; padding-left: 5px;" id="casticon" src="images/cast.svg"></img>
 		<div class="ui-btn-right ui-btn-inline"><input id="advsettingsbtn" data-icon="gear" data-iconpos="right" type="button" value="Advanced Settings"></input></div><br />
 		<select id="channel" data-icon="bars" data-iconpos="left">
 			<option value="0">Select Channel</option>
@@ -66,7 +91,6 @@ jQuery(document).on('pageinit', function() {
 	var session = null;
 	var currentVolume = 0.5;
 	var currentMediaSession = null;
-	var videoloader_timeout = null;
 	
 	jQuery.ajaxSetup({
 		url: 'callback.php',
@@ -106,11 +130,6 @@ jQuery(document).on('pageinit', function() {
 			//need to start encoder
 			set_channel(jQuery('#channel').val());	
 		}
-	});
-	
-	jQuery('#casticon').on('click', function (e) {
-		chrome.cast.requestSession(onRequestSessionSuccess, onError);
-		
 	});
 });
 
@@ -179,8 +198,8 @@ function refresh_state() {
 					jQuery("#advsettingsbtn").button("disable");
 					jQuery("div#advsettings").panel("close");
 					if (jQuery("#videocontainer").text() == '')
-						loading("show", "Video will begin shortly", false);
-						init_video_stream();
+						loading("show", "Waiting "+stream_wait_load+" seconds for stream", false);
+						setTimeout('init_video_stream();', stream_wait_load*1000);
 				}
 				current_channel = d.channel;
 				jQuery("#channel").val(current_channel).selectmenu("refresh");
@@ -190,11 +209,11 @@ function refresh_state() {
 				if (streamstate != "stopped") {
 					//it used to be running or unknown
 					loading("hide");
+					destroy_video(); //if the video.js object exists, destroy it
 					jQuery("#videocontainer").hide();
 					jQuery("#togglevlc").prop("checked", false).flipswitch("refresh").flipswitch("enable");
 					jQuery("#channel").selectmenu("enable");
 					jQuery("#advsettingsbtn").button("enable");
-					jQuery("#videocontainer").text('');
 				}
 				streamstate = "stopped";
 			}
@@ -209,18 +228,35 @@ function refresh_state() {
 	});
 }
 
-function init_video_stream() {
-	if (document.getElementById("stream") != null) {
-		var readystate = document.getElementById("stream").readyState;
-	}
-	if (readystate < 1 || readystate == undefined || readystate == null) {
-		jQuery("#videocontainer").html('<video id="stream" src="stream.m3u8" controls></video>');
-		videoloader_timeout = setTimeout("init_video_stream();", 1000);
-	} else {
-		jQuery("#videocontainer").show();
-		document.getElementById("stream").play();
-		loading("hide");
-	}
+function destroy_video() {
+	var player = document.getElementById('stream');
+	if (!player) return;
+	videojs(player).dispose();
+}
+
+function init_video_stream() {	
+	//we add the video sources with the full URL path so it can be chromecasted
+	var url = window.location.href.split('/');
+	var trash = url.pop();
+	url = url.join('/');
+	var streamurl = url+'/stream.m3u8';
+	var bannerurl = url+'/stream.png';
+	
+	jQuery("#videocontainer").html('<video width="640" height="360" id="stream" class="video-js vjs-default-skin" poster="'+bannerurl+'" controls><source src="'+streamurl+'" type="application/x-mpegURL"></source><p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p></video>');
+	
+	var player = videojs('stream', {
+		plugins: {
+			chromecast: {
+				metadata: {
+					title: 'iPTV Cast Player',
+					subtitle: jQuery('#channel option:selected').text()
+				}
+			}
+		}
+	});
+	
+	jQuery("#videocontainer").show();
+	loading("hide");
 }
 
 function update_channel_lineup() {
@@ -262,81 +298,6 @@ function update_profiles() {
 			jQuery("#profilecontainer > input:checkbox").checkboxradio({ defaults: true });
 		}
 	});
-}
-
-
-if (!chrome.cast || !chrome.cast.isAvailable) {
-	setTimeout(initializeCastApi, 1000);
-}
-
-function initializeCastApi() {
-	var sessionRequest = new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID);
-	var apiConfig = new chrome.cast.ApiConfig(sessionRequest, sessionListener, receiverListener, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
-	chrome.cast.initialize(apiConfig, onInitSuccess, onError);
-}
-function onError(e) {
-  console.log('Cast Error' + e);
-}
-
-function sessionListener(e) {
-	session = e;
-		
-	if (session.media.length != 0) {
-		onMediaDiscovered('onRequestSessionSuccess', session.media[0]);
-	}
-}
-
-function receiverListener(e) {
-	if (e === chrome.cast.ReceiverAvailability.AVAILABLE) {
-		//show cast icon..
-		clearTimeout(videoloader_timeout);
-		loading("hide");
-		jQuery('#casticon').show();
-	}
-}
-
-function onInitSuccess() {
-	//nothing to do here yet.
-}
-
-function onRequestSessionSuccess(e) {
-	jQuery('#casticon').attr('src', 'images/cast_connected.svg');
-	session = e;
-	
-	//now that we have a session how about playing on it..
-	loadMedia();
-}
-
-function loadMedia() {
-	//get media path
-	var arr = window.location.href.split('/');
-	var trash = arr.pop();
-	arr = arr.join('/');
-	
-	var mediaURL = arr+'/stream.m3u8';
-	var contentType = 'application/x-mpegurl';
-	var mediaInfo = new chrome.cast.media.MediaInfo(mediaURL, contentType);
-	
-	//set metadata
-	var metadata = new chrome.cast.media.GenericMediaMetadata;
-	metadata.metadataType = chrome.cast.media.MetadataType.GENERIC;
-	metadata.title = 'iPTV Cast Player';
-	mediaInfo.metadata = metadata;
-	
-	
-	mediaInfo.streamType = chrome.cast.media.StreamType.LIVE;
-	var request = new chrome.cast.media.LoadRequest(mediaInfo);
-	request.autoplay = true;
-	request.currentTime = 0;
-	session.loadMedia(request, onMediaDiscovered.bind(this, 'loadMedia'), onError);
-}
-
-function onMediaDiscovered(how, media) {
-	media.addUpdateListener(onMediaStatusUpdate);
-}
-
-function onMediaStatusUpdate(isAlive) {
-	
 }
 </script>
 
