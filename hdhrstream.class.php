@@ -10,6 +10,7 @@ class HDHRStream {
 	public $ffmpeg_base = '/usr/bin/ffmpeg'; //path to ffmpeg binary. not needed if using vlc
 	public $ffmpeg_threads = 10;
 	public $ffmpeg_acodec = 'libfdk_aac';
+	public $thumb_update_interval = 5; //update stream.png thumbnail every 5 seconds. implemented in ffmpeg transcode ONLY
 	
 	public $vlc_base = "/usr/bin/vlc"; //path to VLC binary. not needed if using ffmpeg mode
 	public $vlc_acodec = 'mp4a';
@@ -113,7 +114,7 @@ class HDHRStream {
 	function __construct() {
 		$this->discover_hdhr();
 		$this->vlc_base =  $this->vlc_base." -d --ignore-config --file-logging --logfile {$this->enc_log} --pidfile {$this->pidf} udp://@:{$this->target_port} --sout-avcodec-strict=-2";
-		$this->ffmpeg_base = 'nohup '.$this->ffmpeg_base.' -i "udp://@:5000" ##deinterlace## -y -analyzeduration 2000000 -threads '.$this->ffmpeg_threads.' ##ffmpeg_opts## > '.$this->enc_log.' 2>&1 & echo $! > '.$this->pidf;
+		$this->ffmpeg_base = 'nohup '.$this->ffmpeg_base.' -i "udp://@:5000" ##deinterlace## -y -analyzeduration 2000000 -threads '.$this->ffmpeg_threads.' -f image2 -s 480x270 -r 1/'.$this->thumb_update_interval.' -update 1 '.$this->stream['path'].'/stream.png ##ffmpeg_opts## > '.$this->enc_log.' 2>&1 & echo $! > '.$this->pidf;
 		if (!$this->stream['path'] = realpath($this->stream['path'])) die("Stream file output path {$this->stream['path']} does not exist.\n");
 	}
 	
@@ -275,6 +276,7 @@ class HDHRStream {
 				@unlink($this->pidf); //we clean up after the encoder if it does not delete its PID file
 				//also clean up *.ts and *.m3u8 files in the stream output path since the stream is not running.
 				array_map('unlink', array_merge(glob($this->stream['path'].'/*stream*.m3u8'), glob($this->stream['path'].'/*stream*.ts')));
+				unlink($this->stream['path'].'/stream.png');
 				return false;
 			}
 		}
