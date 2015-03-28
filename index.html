@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="HDHomeRun Mobile and Chromecast Streaming : Streaming using transcode to variable bitrate HLS from HDHomeRun Prime">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>HDHomeRun Mobile and Chromecast Streaming</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/Logan2211/hdhomerun_hls">View on GitHub</a>
+
+          <h1 id="project_title">HDHomeRun Mobile and Chromecast Streaming</h1>
+          <h2 id="project_tagline">Streaming using transcode to variable bitrate HLS from HDHomeRun Prime</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/Logan2211/hdhomerun_hls/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/Logan2211/hdhomerun_hls/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="hdhomerun-hls-streaming" class="anchor" href="#hdhomerun-hls-streaming" aria-hidden="true"><span class="octicon octicon-link"></span></a>HDHomeRun HLS Streaming</h1>
+
+<h2>
+<a id="intro" class="anchor" href="#intro" aria-hidden="true"><span class="octicon octicon-link"></span></a>Intro</h2>
+
+<p>This project is a web frontend to interface with the <a href="http://www.silicondust.com/">HDHomeRun</a> products and <a href="https://www.ffmpeg.org/">FFmpeg</a> in order to provide a mobile ready VBR <a href="http://en.wikipedia.org/wiki/HTTP_Live_Streaming">HLS live stream</a> of a channel.</p>
+
+<h3>
+<a id="chromecast" class="anchor" href="#chromecast" aria-hidden="true"><span class="octicon octicon-link"></span></a>Chromecast</h3>
+
+<p>We now support Chromecast streaming using desktop Chrome browsers. Start the stream in a Chrome browser with the cast extension installed and the cast icon will appear when Chromecast is available.</p>
+
+<h2>
+<a id="requirements" class="anchor" href="#requirements" aria-hidden="true"><span class="octicon octicon-link"></span></a>Requirements</h2>
+
+<ul>
+<li>Tested on Mac OS X and Ubuntu</li>
+<li>PHP enabled webserver</li>
+<li>
+<a href="https://www.ffmpeg.org/">FFmpeg</a> with libx264 support</li>
+<li><a href="http://www.silicondust.com/support/downloads/">hdhomerun_config</a></li>
+</ul>
+
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<ul>
+<li>Clone this repo: <code>git clone https://github.com/Logan2211/hdhomerun_hls.git</code>
+</li>
+<li>In <code>html/callback.php</code> configure the path to <code>hdhrstream.class.php</code>
+</li>
+<li>Copy <code>html/*</code> to a PHP enabled directory on your webserver. Make sure that your web server has write permissions to this directory so ffmpeg can write the stream segments here.</li>
+<li>Configure the settings at the top of <code>hdhrstream.class.php</code>. The main options involved in the initial configuration are listed below.
+
+<ul>
+<li>
+<code>target_ip</code> should be set to the IP of the system hosting this app</li>
+<li>
+<code>ffmpeg_base</code> must point to your FFmpeg binary</li>
+<li>
+<code>stream =&gt; path</code> must be set to the html directory where <code>index.html</code>, <code>callback.php</code>, etc reside. This is the directory where VLC will output the m3u8 HLS playlists and transcoded video segments.</li>
+<li>
+<code>num_tuners</code> will typically be 3 on HDHomeRun Prime, may be different on other HDHR models.</li>
+</ul>
+</li>
+</ul>
+
+<h3>
+<a id="advancedoptional-settings" class="anchor" href="#advancedoptional-settings" aria-hidden="true"><span class="octicon octicon-link"></span></a>Advanced/Optional Settings</h3>
+
+<ul>
+<li>In <code>html/index.html</code> there are several <code>channel_filter_*</code> settings at the top of the file which enable display filtering of channels. It is disabled by default but I use this to display only HD channels.</li>
+</ul>
+
+<h2>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage</h2>
+
+<p>Once configured navigate to the index.html URL on your device and attempt to start the stream. Check the web server error log and transcoder log file (configured in <code>hdhrstream.class.php</code>) if the stream does not start.</p>
+
+<p>HLS capable players are iPhone, iPad, Safari on Mac, Chromecast, VLC, etc. In the case of browsers that do not natively support HLS streaming we serve a Flash fallback HLS player.</p>
+
+<h2>
+<a id="screenshots" class="anchor" href="#screenshots" aria-hidden="true"><span class="octicon octicon-link"></span></a>Screenshots</h2>
+
+<p><img src="http://i.imgur.com/Xz3gt5a.png" alt="Screenshot 1"> <img src="http://i.imgur.com/pTWCmHd.png" alt="Screenshot 2"> <img src="http://i.imgur.com/zWMGDS8.png" alt="Screenshot 3"></p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">HDHomeRun Mobile and Chromecast Streaming maintained by <a href="https://github.com/Logan2211">Logan2211</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
