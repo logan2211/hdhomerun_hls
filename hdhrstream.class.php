@@ -100,7 +100,9 @@ class HDHRStream {
 
 	public $default_profile = array(
 		'vb' => '600',
+		'acodec' => 'libfdk_aac',
 		'ab' => '64',
+		'achannels' => 2,
 		'deinterlace' => true,
 		'preset' => 'medium',
 		'profile' => 'high',
@@ -260,7 +262,7 @@ class HDHRStream {
 		$p = array_merge($this->default_profile, $p);
 		$my_streamindex = $p['vb'].'-'.$this->stream['index'];
 		$keyframes_seconds = $p['keyframes']/$p['fps'];
-		$opts = "-c:v libx264 -s {$p['width']}x{$p['height']} -r {$p['fps']} -b:v {$p['vb']}k -force_key_frames 'expr:gte(t,n_forced*$keyframes_seconds)' -profile:v {$p['profile']} -preset {$p['preset']} -x264opts level={$p['level']} -c:a {$this->ffmpeg_acodec} -b:a {$p['ab']}k -ac 2 -hls_time {$p['seglen']} -hls_list_size {$p['numsegs']} -hls_wrap {$p['numsegs']} {$this->stream['path']}/{$my_streamindex}";
+		$opts = "-c:v libx264 -s {$p['width']}x{$p['height']} -r {$p['fps']} -b:v {$p['vb']}k -force_key_frames 'expr:gte(t,n_forced*$keyframes_seconds)' -profile:v {$p['profile']} -preset {$p['preset']} -x264opts level={$p['level']} -c:a {$p['acodec']} -b:a {$p['ab']}k -ac {$p['achannels']} -hls_time {$p['seglen']} -hls_list_size {$p['numsegs']} -hls_wrap {$p['numsegs']} {$this->stream['path']}/{$my_streamindex}";
 		return $opts;
 	}
 	function change_channel($channel) {
