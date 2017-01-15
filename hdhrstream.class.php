@@ -5,19 +5,14 @@ class HDHRStream {
 
 	public $pidf = '/tmp/hdhrstream.pid';
 	public $enc_log = '/tmp/hdhrstream.log'; //truncated every time the stream restarts
-	public $enc_type = 'ffmpeg';
 
-	public $ffmpeg_base = '/usr/bin/ffmpeg'; //path to ffmpeg binary. not needed if using vlc
+	public $ffmpeg_base = '/usr/bin/ffmpeg'; //path to ffmpeg binary
 	public $ffmpeg_threads = 10;
 	public $ffmpeg_acodec = 'libfdk_aac';
 	public $thumb_update_interval = 5; //update stream.png thumbnail every 5 seconds. implemented in ffmpeg transcode ONLY
 
-	public $vlc_base = "/usr/bin/vlc"; //path to VLC binary. not needed if using ffmpeg mode
-	public $vlc_acodec = 'mp4a';
-
 	public $stream = array(
 		'path' => '/set/to/html/dir', //path to webserver where we store the stream files
-		'files' => 'stream-######.ts', //ffmpeg does not use this
 		'index' => 'stream.m3u8'
 	);
 
@@ -117,7 +112,6 @@ class HDHRStream {
 
 	function __construct() {
 		$this->discover_hdhr();
-		$this->vlc_base =  $this->vlc_base." -d --ignore-config --file-logging --logfile {$this->enc_log} --pidfile {$this->pidf} udp://@:{$this->target_port} --sout-avcodec-strict=-2";
 		$this->ffmpeg_base = 'nohup '.$this->ffmpeg_base.' -i "udp://@:5000?fifo_size=1000000&overrun_nonfatal=1" ##deinterlace## -y -threads '.$this->ffmpeg_threads.' -f image2 -s 480x270 -r 1/'.$this->thumb_update_interval.' -update 1 '.$this->stream['path'].'/stream.png ##ffmpeg_opts## > '.$this->enc_log.' 2>&1 & echo $! > '.$this->pidf;
 		if (!$this->stream['path'] = realpath($this->stream['path'])) die("Stream file output path {$this->stream['path']} does not exist.\n");
 	}
@@ -133,19 +127,7 @@ class HDHRStream {
 			vbr_playlist => built vbr playlist with paths to all playlists
 		*/
 
-		switch($this->enc_type) {
-			case 'vlc':
-				$streamopts = $this->vlc_generate();
-			break;
-			case 'ffmpeg':
-				$streamopts = $this->ffmpeg_generate();
-			break;
-			default:
-				die("Invalid encoder selection: {$this->enc_type}\n");
-			break;
-		}
-		if (empty($streamopts)) throw new Exception("No encoder options were generated. Check enc_type config option.\n");
-
+		$streamopts = $this->ffmpeg_generate();
 		file_put_contents($this->stream['path'].'/'.$this->stream['index'], $streamopts['vbr_playlist']);
 
 		$this->tuner = $this->get_available_tuner();
@@ -195,42 +177,6 @@ class HDHRStream {
 			exec_command("hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/lockkey none");
 		}
 		return true;
-	}
-	function vlc_generate() {
-		$return = array(
-			'encoder' => $this->vlc_base.' --sout=\'#duplicate{',
-			'vbr_playlist' => "#EXTM3U\n"
-		);
-		$vbr =& $return['vbr_playlist'];
-		$vlc =& $return['encoder'];
-
-		$first_enc = true;
-		foreach ($this->profiles as $p) {
-			if ($p['enabled'] === false) continue;
-			$v = $this->vlc_generate_profile_options($p);
-			if ($first_enc === false) $vlc .= ',';
-			else $first_enc = false;
-			$vlc .= "dst=\"transcode{{$v['size']},{$v['video']},{$v['audio']}}:std{{$v['std']}}\"";
-			$vbr .= '#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH='.($p['vb']*1000)."\n{$v['streamindex']}\n";
-		}
-		$vlc .= '}\'';
-		return $return;
-	}
-	function vlc_generate_profile_options($p) {
-		$p = array_merge($this->default_profile, $p);
-
-		$my_streamindex = $p['vb'].'-'.$this->stream['index'];
-		$my_streamfiles = $p['vb'].'-'.$this->stream['files'];
-		$v = array(
-			'streamindex' => $my_streamindex,
-			'size' => "width={$p['width']},height={$p['height']}",
-			'x264_opts' => "preset={$p['preset']},profile={$p['profile']},keyint={$p['keyframes']}",
-			'audio' => "ab={$p['ab']},channels=2,audio-sync,acodec={$this->vlc_acodec}",
-			'livehttp_opts' => "seglen={$p['seglen']},numsegs={$p['numsegs']},delsegs=true,index={$this->stream['path']}/$my_streamindex,index-url=$my_streamfiles"
-		);
-		$v['video'] = ($p['deinterlace'] == true ? 'deinterlace,' : '')."vcodec=h264,vb={$p['vb']},fps={$p['fps']},venc=x264{{$v['x264_opts']}}";
-		$v['std'] = "access=livehttp{{$v['livehttp_opts']}},mux=ts{use-key-frames},dst={$this->stream['path']}/$my_streamfiles";
-		return $v;
 	}
 	function ffmpeg_generate() {
 		$return = array(
