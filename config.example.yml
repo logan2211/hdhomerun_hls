@@ -1,0 +1,103 @@
+---
+
+target_ip: 192.168.1.10 # this is the IP for the hdhr to send the stream to. (ie. ip of this computer.)
+target_port: 5000 # target port for the hdhr to send the stream to
+pidf: /tmp/hdhrstream.pid
+encoder_log: /tmp/hdhrstream.log # truncated every time the stream restarts
+
+ffmpeg_base: /usr/bin/ffmpeg
+ffmpeg_threads: 10
+thumb_update_interval: 5 # update stream.png thumbnail every 5 seconds
+
+stream:
+  path: /set/to/html/dir # path to webserver where the stream files are stored
+  index: stream.m3u8
+
+# leave blank for autodiscovery. can be either mac address (hdhomerun_config discover),
+# or the ip address of hdhr. FFFFFFFF is first discovered.
+hdhr_id: ''
+num_tuners: 3 # set to the number of tuners available on your HDHR
+# find available tuners starting from highest # first. Used to try to avoid conflicts with apps like mythtv which do not handle tuner sharing.
+tuners_descending: false
+tuner_type: new
+lockkey: 111111
+
+# apple recommended profiles at
+# http://developer.apple.com/library/ios/#technotes/tn2224/_index.html#//apple_ref/doc/uid/DTS40009745
+encoder_profiles:
+  200k:
+    width: 416
+    height: 234
+    video_bitrate: 200
+    audio_bitrate: 32
+    # ultrafast,superfast,veryfast,faster,fast,medium,slow,slower,veryslow,placebo
+    preset: medium
+    # baseline,main,high,high10,high422,high444
+    profile: baseline
+    enabled: true
+  400k:
+    width: 416
+    height: 234
+    video_bitrate: 400
+    audio_bitrate: 48
+    preset: medium
+    profile: main
+    enabled: true
+  600k:
+    width: 640
+    height: 360
+    video_bitrate: 600
+    audio_bitrate: 64
+    preset: medium
+    profile: main
+    enabled: true
+  1200k:
+    width: 640
+    height: 360
+    video_bitrate: 1200
+    audio_bitrate: 64
+    preset: medium
+    profile: high
+    enabled: true
+  1800k:
+    width: 960
+    height: 540
+    video_bitrate: 1800
+    audio_bitrate: 64
+    preset: medium
+    profile: high
+    enabled: false
+  2500k:
+    width: 1280
+    height: 720
+    video_bitrate: 2500
+    audio_bitrate: 96
+    preset: medium
+    profile: high
+    enabled: false
+  4500k:
+    width: 1280
+    height: 720
+    video_bitrate: 4500
+    audio_bitrate: 96
+    preset: medium
+    profile: high
+    enabled: false
+
+default_profile:
+  video_bitrate: 600
+  acodec: libfdk_aac
+  audio_bitrate: 64
+  audio_channels: 2
+  deinterlace: true
+  preset: medium
+  profile: high
+  # https://trac.ffmpeg.org/wiki/Encode/H.264#Alldevices
+  level: 41
+  fps: 30
+  seglen: 6
+  numsegs: 20
+  # typically 1-3 seconds between keyframes. so fps*3 is a good starting point.
+  # (seglen/(keyframs/fps)) should be integer so each segment starts with keyframe.
+  # info about keyframe rates: http://www.streamingmedia.com/Articles/ReadArticle.aspx?ArticleID=73017&PageNum=2
+  keyframes: 60

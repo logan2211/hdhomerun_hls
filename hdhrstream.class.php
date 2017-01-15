@@ -1,119 +1,19 @@
 <?php
 class HDHRStream {
-	public $target_ip = '192.168.1.10'; //this is the IP for the hdhr to send the stream to. (ie. ip of this computer.)
-	public $target_port = '5000'; //target port for the hdhr to send the stream to
-
-	public $pidf = '/tmp/hdhrstream.pid';
-	public $enc_log = '/tmp/hdhrstream.log'; //truncated every time the stream restarts
-
-	public $ffmpeg_base = '/usr/bin/ffmpeg'; //path to ffmpeg binary
-	public $ffmpeg_threads = 10;
-	public $ffmpeg_acodec = 'libfdk_aac';
-	public $thumb_update_interval = 5; //update stream.png thumbnail every 5 seconds. implemented in ffmpeg transcode ONLY
-
-	public $stream = array(
-		'path' => '/set/to/html/dir', //path to webserver where we store the stream files
-		'index' => 'stream.m3u8'
-	);
-
-	public $hdhr_id = ''; //leave blank for autodiscovery. can be either mac address (hdhomerun_config discover), or the ip address of hdhr. FFFFFFFF is first discovered.
-	public $num_tuners = 3; //hdhomerun prime has 3 tuners
-	public $tuners_descending = false; //find available tuners starting from highest # first. Used to try to avoid conflicts with apps like mythtv which do not handle tuner sharing.
-	public $tuner_type = "old";
-	public $lockkey = '11111';
+	public $config = null;
 	public $tuner = null;
-
 	public $discovery = null;
 	public $lineup = null; //channel lineup, populated by get_channel_lineup()
 
-	//apple recommended profiles at http://developer.apple.com/library/ios/#technotes/tn2224/_index.html#//apple_ref/doc/uid/DTS40009745
-	public $profiles = array(
-		'200k' => array( //200k
-			'width' => '416',
-			'height' => '234',
-			'vb' => '200',
-			'ab' => '32',
-			'preset' => 'medium', //ultrafast,superfast,veryfast,faster,fast,medium,slow,slower,veryslow,placebo
-			'profile' => 'baseline', //baseline,main,high,high10,high422,high444
-			'enabled' => true
-		),
-		'400k' => array( //400k
-			'width' => '416',
-			'height' => '234',
-			'vb' => '400',
-			'ab' => '48',
-			'preset' => 'medium',
-			'profile' => 'main',
-			'enabled' => true
-		),
-		'600k' => array( //600k
-			'width' => '640',
-			'height' => '360',
-			'vb' => '600',
-			'ab' => '64',
-			'preset' => 'medium',
-			'profile' => 'main',
-			'enabled' => true
-		),
-		'1200k' => array( //1200k
-			'width' => '640',
-			'height' => '360',
-			'vb' => '1200',
-			'ab' => '64',
-			'preset' => 'medium',
-			'profile' => 'high',
-			'enabled' => true
-		),
-		'1800k' => array( //1800k lots of CPU
-			'width' => '960',
-			'height' => '540',
-			'vb' => '1800',
-			'ab' => '64',
-			'preset' => 'medium',
-			'profile' => 'high',
-			'enabled' => false
-		),
-		'2500k' => array( //2500k 720p high cpu+bw
-			'width' => '1280',
-			'height' => '720',
-			'vb' => '2500',
-			'ab' => '96',
-			'preset' => 'medium',
-			'profile' => 'high',
-			'enabled' => false
-		),
-		'4500k' => array( //4500k 720p high cpu+bw
-			'width' => '1280',
-			'height' => '720',
-			'vb' => '4500',
-			'ab' => '96',
-			'preset' => 'medium',
-			'profile' => 'high',
-			'enabled' => false
-		)
-	);
-
-	public $default_profile = array(
-		'vb' => '600',
-		'acodec' => 'libfdk_aac',
-		'ab' => '64',
-		'achannels' => 2,
-		'deinterlace' => true,
-		'preset' => 'medium',
-		'profile' => 'high',
-		'level' => '41', //https://trac.ffmpeg.org/wiki/Encode/H.264#Alldevices
-		'fps' => '30',
-		'seglen' => '10',
-		'numsegs' => '8',
-		'keyframes' => '60' //typically 1-3 seconds between keyframes. so fps*3 is a good starting point.
-		//(seglen/(keyframs/fps)) should be integer so each segment starts with keyframe.
-		//info about keyframe rates: http://www.streamingmedia.com/Articles/ReadArticle.aspx?ArticleID=73017&PageNum=2
-	);
-
-	function __construct() {
+	function __construct($config_file='config.yml') {
+		$this->load_config($config_file);
 		$this->discover_hdhr();
-		$this->ffmpeg_base = 'nohup '.$this->ffmpeg_base.' -i "udp://@:5000?fifo_size=1000000&overrun_nonfatal=1" ##deinterlace## -y -threads '.$this->ffmpeg_threads.' -f image2 -s 480x270 -r 1/'.$this->thumb_update_interval.' -update 1 '.$this->stream['path'].'/stream.png ##ffmpeg_opts## > '.$this->enc_log.' 2>&1 & echo $! > '.$this->pidf;
-		if (!$this->stream['path'] = realpath($this->stream['path'])) die("Stream file output path {$this->stream['path']} does not exist.\n");
+		$this->config['ffmpeg_base'] = 'nohup '.$this->config['ffmpeg_base'].' -i "udp://@:5000?fifo_size=1000000&overrun_nonfatal=1" ##deinterlace## -y -threads '.$this->config['ffmpeg_threads'].' -f image2 -s 480x270 -r 1/'.$this->config['thumb_update_interval'].' -update 1 '.$this->config['stream']['path'].'/stream.png ##ffmpeg_opts## > '.$this->config['encoder_log'].' 2>&1 & echo $! > '.$this->config['pidf'];
+		if (!$this->config['stream']['path'] = realpath($this->config['stream']['path'])) die("Stream file output path {$this->config['stream']['path']} does not exist.\n");
+	}
+
+	function load_config($file) {
+		$this->config = yaml_parse_file($file);
 	}
 
 	function start_stream($channel) {
@@ -128,16 +28,16 @@ class HDHRStream {
 		*/
 
 		$streamopts = $this->ffmpeg_generate();
-		file_put_contents($this->stream['path'].'/'.$this->stream['index'], $streamopts['vbr_playlist']);
+		file_put_contents($this->config['stream']['path'].'/'.$this->config['stream']['index'], $streamopts['vbr_playlist']);
 
 		$this->tuner = $this->get_available_tuner();
 		if ($this->tuner === false) exit("No available tuners found!\n");
 
-		$hdhr_id = escapeshellarg($this->hdhr_id);
-		$lockkey = escapeshellarg($this->lockkey);
+		$hdhr_id = escapeshellarg($this->config['hdhr_id']);
+		$lockkey = escapeshellarg($this->config['lockkey']);
 
 		$cmds = array("hdhomerun_config $hdhr_id set /{$this->tuner}/lockkey $lockkey");
-		if ($this->tuner_type == 'new') {
+		if ($this->config['tuner_type'] == 'new') {
 			array_push($cmds, "hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/vchannel $channel");
 		} else {
 			$this->get_channel_lineup();
@@ -153,7 +53,7 @@ class HDHRStream {
 		}
 		array_push($cmds, $streamopts['encoder']);
 		array_push($cmds, 'sleep 0.5'); //sleep for 1/2 second to give encoder a little time to start up before it starts receiving the stream.
-		array_push($cmds, "hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/target {$this->target_ip}:{$this->target_port}");
+		array_push($cmds, "hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/target {$this->config['target_ip']}:{$this->config['target_port']}");
 
 		foreach($cmds as $c) {
 			$r = exec_command($c);
@@ -172,21 +72,21 @@ class HDHRStream {
 		}
 		//unlock tuner
 		if (!empty($this->tuner)) {
-			$hdhr_id = escapeshellarg($this->hdhr_id);
-			$lockkey = escapeshellarg($this->lockkey);
+			$hdhr_id = escapeshellarg($this->config['hdhr_id']);
+			$lockkey = escapeshellarg($this->config['lockkey']);
 			exec_command("hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/lockkey none");
 		}
 		return true;
 	}
 	function ffmpeg_generate() {
 		$return = array(
-			'encoder' => $this->ffmpeg_base,
+			'encoder' => $this->config['ffmpeg_base'],
 			'vbr_playlist' => "#EXTM3U\n"
 		);
 		$vbr =& $return['vbr_playlist'];
 
 		//handle deinterlace
-		if ($this->default_profile['deinterlace'] === true) {
+		if ($this->config['default_profile']['deinterlace'] === true) {
 			$deinterlace = '-vf yadif=0:-1:1'; //https://www.ffmpeg.org/ffmpeg-filters.html#yadif-1
 		} else {
 			$deinterlace = '';
@@ -194,9 +94,9 @@ class HDHRStream {
 		$return['encoder'] = str_replace('##deinterlace##', $deinterlace, $return['encoder']);
 
 		$ffmpeg_profile_opts = '';
-		foreach ($this->profiles as $p) {
+		foreach ($this->config['encoder_profiles'] as $p) {
 			if ($p['enabled'] === false) continue;
-			$my_streamindex = $p['vb'].'-'.$this->stream['index'];
+			$my_streamindex = $p['vb'].'-'.$this->config['stream']['index'];
 			$ffmpeg_profile_opts .= $this->ffmpeg_generate_profile_options($p).' ';
 			$vbr .= '#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH='.($p['vb']*1000)."\n$my_streamindex\n";
 		}
@@ -205,10 +105,10 @@ class HDHRStream {
 		return $return;
 	}
 	function ffmpeg_generate_profile_options($p) {
-		$p = array_merge($this->default_profile, $p);
-		$my_streamindex = $p['vb'].'-'.$this->stream['index'];
+		$p = array_merge($this->config['default_profile'], $p);
+		$my_streamindex = $p['vb'].'-'.$this->config['stream']['index'];
 		$keyframes_seconds = $p['keyframes']/$p['fps'];
-		$opts = "-c:v libx264 -s {$p['width']}x{$p['height']} -r {$p['fps']} -b:v {$p['vb']}k -force_key_frames 'expr:gte(t,n_forced*$keyframes_seconds)' -profile:v {$p['profile']} -preset {$p['preset']} -x264opts level={$p['level']} -c:a {$p['acodec']} -b:a {$p['ab']}k -ac {$p['achannels']} -hls_time {$p['seglen']} -hls_list_size {$p['numsegs']} -hls_wrap {$p['numsegs']} {$this->stream['path']}/{$my_streamindex}";
+		$opts = "-c:v libx264 -s {$p['width']}x{$p['height']} -r {$p['fps']} -b:v {$p['vb']}k -force_key_frames 'expr:gte(t,n_forced*$keyframes_seconds)' -profile:v {$p['profile']} -preset {$p['preset']} -x264opts level={$p['level']} -c:a {$p['acodec']} -b:a {$p['ab']}k -ac {$p['achannels']} -hls_time {$p['seglen']} -hls_list_size {$p['numsegs']} -hls_wrap {$p['numsegs']} {$this->config['stream']['path']}/{$my_streamindex}";
 		return $opts;
 	}
 	function change_channel($channel) {
@@ -220,15 +120,15 @@ class HDHRStream {
 		}
 		//encoder is running if we get here, so the channel can just be changed
 		$tuner = $this->get_my_tuner();
-		$hdhr_id = escapeshellarg($this->hdhr_id);
-		$lockkey = escapeshellarg($this->lockkey);
+		$hdhr_id = escapeshellarg($this->config['hdhr_id']);
+		$lockkey = escapeshellarg($this->config['lockkey']);
 		$command = "hdhomerun_config $hdhr_id key $lockkey set /$tuner/vchannel $channel";
 		$r = exec_command($command);
 		if ($r['code'] == 0) return true;
 		return false;
 	}
 	function check_enc_running() {
-		$pid = trim(@file_get_contents($this->pidf));
+		$pid = trim(@file_get_contents($this->config['pidf']));
 		$status = @posix_kill($pid, 0);
 
 		if (empty($pid) || !$status) {
@@ -236,33 +136,33 @@ class HDHRStream {
 			if (empty($pid)) $errno = 3; //errno 3 is ESRCH
 			if ($errno == 3) { //errno 3 is ESRCH
 				//no such process--encoder is not running
-				@unlink($this->pidf); //we clean up after the encoder if it does not delete its PID file
+				@unlink($this->config['pidf']); //we clean up after the encoder if it does not delete its PID file
 				//also clean up *.ts and *.m3u8 files in the stream output path since the stream is not running.
-				array_map('unlink', array_merge(glob($this->stream['path'].'/*stream*.m3u8'), glob($this->stream['path'].'/*stream*.ts')));
-				unlink($this->stream['path'].'/stream.png');
+				array_map('unlink', array_merge(glob($this->config['stream']['path'].'/*stream*.m3u8'), glob($this->config['stream']['path'].'/*stream*.ts')));
+				unlink($this->config['stream']['path'].'/stream.png');
 				return false;
 			}
 		}
 		return $pid; //encoder is probably running at this point.
 	}
 	function get_available_tuner() {
-		if ($this->tuners_descending == true) {
-			for ($i=$this->num_tuners; $i>=0; $i--) {
-				$return = exec_command('hdhomerun_config '.escapeshellarg($this->hdhr_id)." get /tuner$i/lockkey");
+		if ($this->config['tuners_descending'] == true) {
+			for ($i=$this->config['num_tuners']; $i>=0; $i--) {
+				$return = exec_command('hdhomerun_config '.escapeshellarg($this->config['hdhr_id'])." get /tuner$i/lockkey");
 				if ($return['code'] != 0) continue; //some error executing the command.
 				if ($return['output'] == 'none') {
-					$return = exec_command('hdhomerun_config '.escapeshellarg($this->hdhr_id)." get /tuner$i/target");
+					$return = exec_command('hdhomerun_config '.escapeshellarg($this->config['hdhr_id'])." get /tuner$i/target");
 					if ($return['code'] != 0 || $return['output'] != 'none') continue; //failed to execute or someone is using this tuner unlocked
 					//this tuner is not in use!
 					return 'tuner'.$i;
 				}
 			}
 		} else {
-			for ($i=0; $i<$this->num_tuners; $i++) {
-				$return = exec_command('hdhomerun_config '.escapeshellarg($this->hdhr_id)." get /tuner$i/lockkey");
+			for ($i=0; $i<$this->config['num_tuners']; $i++) {
+				$return = exec_command('hdhomerun_config '.escapeshellarg($this->config['hdhr_id'])." get /tuner$i/lockkey");
 				if ($return['code'] != 0) continue; //some error executing the command.
 				if ($return['output'] == 'none') {
-					$return = exec_command('hdhomerun_config '.escapeshellarg($this->hdhr_id)." get /tuner$i/target");
+					$return = exec_command('hdhomerun_config '.escapeshellarg($this->config['hdhr_id'])." get /tuner$i/target");
 					if ($return['code'] != 0 || $return['output'] != 'none') continue; //failed to execute or someone is using this tuner unlocked
 					//this tuner is not in use!
 					return 'tuner'.$i;
@@ -274,14 +174,14 @@ class HDHRStream {
 	function get_tuner_target($tuner) {
 		//expect tunerX input. $tuner should be 'tuner0' or something
 		$arg = escapeshellarg("/$tuner/target");
-		$result = exec_command('hdhomerun_config '.escapeshellarg($this->hdhr_id).' get '.$arg);
+		$result = exec_command('hdhomerun_config '.escapeshellarg($this->config['hdhr_id']).' get '.$arg);
 		if ($result['output'] == 'none') return false;
 		return $result['output'];
 	}
 	function get_my_tuner() {
 		//loop through the hdhomerun tuners and figure out which one is set to this computer as target.
-		$me = $this->target_ip.':'.$this->target_port;
-		for ($i=0; $i<$this->num_tuners; $i++) {
+		$me = $this->config['target_ip'].':'.$this->config['target_port'];
+		for ($i=0; $i<$this->config['num_tuners']; $i++) {
 			$target = $this->get_tuner_target('tuner'.$i);
 			if (strstr($target, $me)) {
 				//this is my tuner.
@@ -293,7 +193,7 @@ class HDHRStream {
 	function get_my_channel() {
 		$tuner = $this->get_my_tuner();
 		if (!$tuner) throw new Exception('Could not get tuner');
-		$r = exec_command('hdhomerun_config '.escapeshellarg($this->hdhr_id).' get /'.$tuner.'/vchannel');
+		$r = exec_command('hdhomerun_config '.escapeshellarg($this->config['hdhr_id']).' get /'.$tuner.'/vchannel');
 		if (!is_numeric($r['output'])) return false;
 		return $r['output'];
 	}
@@ -301,14 +201,14 @@ class HDHRStream {
 		$cmd = 'hdhomerun_config discover';
 		$r = exec_command($cmd);
 		if (preg_match('/hdhomerun device (?P<mac>[^\s]+) found at (?P<ip>[^\s]+)/', $r['output'], $m)) {
-			$this->hdhr_id = $m['ip'];
+			$this->config['hdhr_id'] = $m['ip'];
 		}
 	}
 	function discover_hdhr_info() {
-		if (!ip2long($this->hdhr_id)) throw new Exception('HDhomerun ID is not an IP address: '.$this->hdhr_id);
-		$url = "http://{$this->hdhr_id}/discover.json";
+		if (!ip2long($this->config['hdhr_id'])) throw new Exception('HDhomerun ID is not an IP address: '.$this->config['hdhr_id']);
+		$url = "http://{$this->config['hdhr_id']}/discover.json";
 		$this->discovery = json_decode(file_get_contents($url));
-		$this->num_tuners = $this->discovery->TunerCount;
+		$this->config['num_tuners'] = $this->discovery->TunerCount;
 	}
 	function get_channel_lineup() {
 		$this->discover_hdhr_info();

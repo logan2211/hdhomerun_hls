@@ -18,12 +18,12 @@ switch ($_REQUEST['type']) {
 	break;
 	case 'set_channel':
 		$channel = $_REQUEST['channel'];
-		if ($_REQUEST['deinterlace'] == "true") $h->default_profile['deinterlace'] = true;
-		else $h->default_profile['deinterlace'] = false;
+		if ($_REQUEST['deinterlace'] == "true") $h->config['default_profile']['deinterlace'] = true;
+		else $h->config['default_profile']['deinterlace'] = false;
 
 		foreach(json_decode($_REQUEST['profiles']) as $name => $enabled) {
-			if ($enabled == true) $h->profiles[$name]['enabled'] = true;
-			else $h->profiles[$name]['enabled'] = false;
+			if ($enabled == true) $h->config['encoder_profiles'][$name]['enabled'] = true;
+			else $h->config['encoder_profiles'][$name]['enabled'] = false;
 		}
 
 		if (!is_numeric($channel)) exit();
@@ -34,8 +34,8 @@ switch ($_REQUEST['type']) {
 	break;
 	case 'get_profiles':
 		$return = array();
-		foreach ($h->profiles as $p => $profile) {
-			$profile = array_merge($h->default_profile, $profile);
+		foreach ($h->config['encoder_profiles'] as $p => $profile) {
+			$profile = array_merge($h->config['default_profile'], $profile);
 			$return[] = array('name' => $p, 'settings' => $profile);
 		}
 		echo returnJSON($return);

@@ -14,7 +14,7 @@ This app is now updated to support casting to Chromecast devices using desktop C
 * Clone this repo: `git clone https://github.com/Logan2211/hdhomerun_hls.git`
 * In `html/callback.php` configure the path to `hdhrstream.class.php`
 * Copy `html/*` to a PHP enabled directory on your webserver. Make sure that your web server has write permissions to this directory so ffmpeg can write the stream segments here.
-* Configure the settings at the top of `hdhrstream.class.php`. The main options involved in the initial configuration are listed below.
+* Copy `config.example.yml` to `config.yml` and perform the initial configuration as follows.
 	* `target_ip` should be set to the IP of the system hosting this app
 	* `ffmpeg_base` must point to your FFmpeg binary
 	* `stream => path` must be set to the html directory where `index.html`, `callback.php`, etc reside. This is the directory where ffmpeg will output the m3u8 HLS playlists and transcoded stream segments.
