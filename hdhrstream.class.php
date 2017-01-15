@@ -6,7 +6,8 @@ class HDHRStream {
 	public $lineup = null; //channel lineup, populated by get_channel_lineup()
 
 	function __construct($config_file='config.yml') {
-		$this->load_config($config_file);
+		$path = realpath(dirname(__FILE__));
+		$this->load_config($path.'/'.$config_file);
 		$this->discover_hdhr();
 		$this->config['ffmpeg_base'] = 'nohup '.$this->config['ffmpeg_base'].' -i "udp://@:5000?fifo_size=1000000&overrun_nonfatal=1" ##deinterlace## -y -threads '.$this->config['ffmpeg_threads'].' -f image2 -s 480x270 -r 1/'.$this->config['thumb_update_interval'].' -update 1 '.$this->config['stream']['path'].'/stream.png ##ffmpeg_opts## > '.$this->config['encoder_log'].' 2>&1 & echo $! > '.$this->config['pidf'];
 		if (!$this->config['stream']['path'] = realpath($this->config['stream']['path'])) die("Stream file output path {$this->config['stream']['path']} does not exist.\n");
