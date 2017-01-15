@@ -12,34 +12,16 @@
 <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no" />
 
 <!-- Load video.js -->
-<link href="//vjs.zencdn.net/4.12/video-js.css" rel="stylesheet">
-<script src="js/video-4.12.novtt.dev.min.js"></script>
+<link href="//vjs.zencdn.net/5.8.8/video-js.css" rel="stylesheet">
+<script src="//vjs.zencdn.net/5.8.8/video.js"></script>
+<script src="//npmcdn.com/videojs-contrib-hls.js"></script>
 
-<!-- Media Sources video.js plugin -->
-<script src="js/videojs-media-sources.js"></script>
-
-<!-- HLS plugin for video.js to play in flash on unsupported devices -->
-<script src="js/videojs-contrib-hls/videojs-hls.js"></script>
-<script src="js/videojs-contrib-hls/xhr.js"></script>
-<script src="js/videojs-contrib-hls/flv-tag.js"></script>
-<script src="js/videojs-contrib-hls/stream.js"></script>
-<script src="js/videojs-contrib-hls/exp-golomb.js"></script>
-<script src="js/videojs-contrib-hls/h264-stream.js"></script>
-<script src="js/videojs-contrib-hls/aac-stream.js"></script>
-<script src="js/videojs-contrib-hls/metadata-stream.js"></script>
-<script src="js/videojs-contrib-hls/segment-parser.js"></script>
-<script src="js/videojs-contrib-hls/m3u8/m3u8-parser.js"></script>
-<script src="js/videojs-contrib-hls/playlist-loader.js"></script>
-<script src="js/videojs-contrib-hls/bin-utils.js"></script>
-
-<!-- Load Chromecast sender -->
-<script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
 <!-- Video.js chromecast plugin -->
-<link href="css/videojs.chromecast.min.css" rel="stylesheet">
-<script src="js/videojs.chromecast.min.js"></script>
+<link href="css/videojs-chromecast.css" rel="stylesheet">
+<script src="js/videojs-chromecast.min.js"></script>
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
 
 <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
-<script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
 
 <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jquerymobile/1.4.3/jquery.mobile.min.css" />
 <link rel="stylesheet" href="css/stream.css" />
@@ -244,16 +226,7 @@ function init_video_stream() {
 
 	jQuery("#videocontainer").html('<video width="640" height="360" id="stream" class="video-js vjs-default-skin" poster="'+bannerurl+'" controls><source src="'+streamurl+'" type="application/x-mpegURL"></source><p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p></video>');
 
-	var player = videojs('stream', {
-		plugins: {
-			chromecast: {
-				metadata: {
-					title: 'iPTV Cast Player',
-					subtitle: jQuery('#channel option:selected').text()
-				}
-			}
-		}
-	});
+	var player = videojs('stream');
 
 	jQuery("#videocontainer").show();
 	loading("hide");
