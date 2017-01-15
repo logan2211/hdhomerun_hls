@@ -97,9 +97,9 @@ class HDHRStream {
 		$ffmpeg_profile_opts = '';
 		foreach ($this->config['encoder_profiles'] as $p) {
 			if ($p['enabled'] === false) continue;
-			$my_streamindex = $p['vb'].'-'.$this->config['stream']['index'];
+			$my_streamindex = $p['video_bitrate'].'-'.$this->config['stream']['index'];
 			$ffmpeg_profile_opts .= $this->ffmpeg_generate_profile_options($p).' ';
-			$vbr .= '#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH='.($p['vb']*1000)."\n$my_streamindex\n";
+			$vbr .= '#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH='.($p['video_bitrate']*1000)."\n$my_streamindex\n";
 		}
 		$ffmpeg_profile_opts = trim($ffmpeg_profile_opts);
 		$return['encoder'] = str_replace('##ffmpeg_opts##', $ffmpeg_profile_opts, $return['encoder']);
@@ -107,9 +107,9 @@ class HDHRStream {
 	}
 	function ffmpeg_generate_profile_options($p) {
 		$p = array_merge($this->config['default_profile'], $p);
-		$my_streamindex = $p['vb'].'-'.$this->config['stream']['index'];
+		$my_streamindex = $p['video_bitrate'].'-'.$this->config['stream']['index'];
 		$keyframes_seconds = $p['keyframes']/$p['fps'];
-		$opts = "-c:v libx264 -s {$p['width']}x{$p['height']} -r {$p['fps']} -b:v {$p['vb']}k -force_key_frames 'expr:gte(t,n_forced*$keyframes_seconds)' -profile:v {$p['profile']} -preset {$p['preset']} -x264opts level={$p['level']} -c:a {$p['acodec']} -b:a {$p['ab']}k -ac {$p['achannels']} -hls_time {$p['seglen']} -hls_list_size {$p['numsegs']} -hls_wrap {$p['numsegs']} {$this->config['stream']['path']}/{$my_streamindex}";
+		$opts = "-c:v libx264 -s {$p['width']}x{$p['height']} -r {$p['fps']} -b:v {$p['video_bitrate']}k -force_key_frames 'expr:gte(t,n_forced*$keyframes_seconds)' -profile:v {$p['profile']} -preset {$p['preset']} -x264opts level={$p['level']} -c:a {$p['acodec']} -b:a {$p['audio_bitrate']}k -ac {$p['audio_channels']} -hls_time {$p['seglen']} -hls_list_size {$p['numsegs']} -hls_wrap {$p['numsegs']} {$this->config['stream']['path']}/{$my_streamindex}";
 		return $opts;
 	}
 	function change_channel($channel) {
