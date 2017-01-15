@@ -24,9 +24,11 @@ class HDHRStream {
 	public $hdhr_id = ''; //leave blank for autodiscovery. can be either mac address (hdhomerun_config discover), or the ip address of hdhr. FFFFFFFF is first discovered.
 	public $num_tuners = 3; //hdhomerun prime has 3 tuners
 	public $tuners_descending = false; //find available tuners starting from highest # first. Used to try to avoid conflicts with apps like mythtv which do not handle tuner sharing.
+	public $tuner_type = "old";
 	public $lockkey = '11111';
 	public $tuner = null;
 
+	public $discovery = null;
 	public $lineup = null; //channel lineup, populated by get_channel_lineup()
 
 	//apple recommended profiles at http://developer.apple.com/library/ios/#technotes/tn2224/_index.html#//apple_ref/doc/uid/DTS40009745
@@ -149,13 +151,26 @@ class HDHRStream {
 
 		$hdhr_id = escapeshellarg($this->hdhr_id);
 		$lockkey = escapeshellarg($this->lockkey);
-		$cmds = array(
-			"hdhomerun_config $hdhr_id set /{$this->tuner}/lockkey $lockkey",
-			"hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/vchannel $channel",
-			$streamopts['encoder'],
-			'sleep 0.5', //sleep for 1/2 second to give encoder a little time to start up before it starts receiving the stream.
-			"hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/target {$this->target_ip}:{$this->target_port}"
-		);
+
+		$cmds = array("hdhomerun_config $hdhr_id set /{$this->tuner}/lockkey $lockkey");
+		if ($this->tuner_type == 'new') {
+			array_push($cmds, "hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/vchannel $channel");
+		} else {
+			$this->get_channel_lineup();
+			foreach($this->lineup as $l) {
+				if ($l->GuideNumber == $channel) {
+					preg_match('/^.*\/ch([0-9]{9})-([0-9])\s*$/', $l->URL, $matches);
+					$channel_freq = $matches[1];
+					$channel_program = $matches[2];
+				}
+			}
+			array_push($cmds, "hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/channel $channel_freq");
+			array_push($cmds, "hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/program $channel_program");
+		}
+		array_push($cmds, $streamopts['encoder']);
+		array_push($cmds, 'sleep 0.5'); //sleep for 1/2 second to give encoder a little time to start up before it starts receiving the stream.
+		array_push($cmds, "hdhomerun_config $hdhr_id key $lockkey set /{$this->tuner}/target {$this->target_ip}:{$this->target_port}");
+
 		foreach($cmds as $c) {
 			$r = exec_command($c);
 			if ($r['code'] != 0) echo "Failed to run: $c\n";
@@ -341,11 +356,16 @@ class HDHRStream {
 			$this->hdhr_id = $m['ip'];
 		}
 	}
-	function get_channel_lineup() {
+	function discover_hdhr_info() {
 		if (!ip2long($this->hdhr_id)) throw new Exception('HDhomerun ID is not an IP address: '.$this->hdhr_id);
-		$url = 'http://'.$this->hdhr_id.'/lineup.xml';
-		$xml = simplexml_load_file($url);
-		$this->lineup = $xml;
+		$url = "http://{$this->hdhr_id}/discover.json";
+		$this->discovery = json_decode(file_get_contents($url));
+		$this->num_tuners = $this->discovery->TunerCount;
+	}
+	function get_channel_lineup() {
+		$this->discover_hdhr_info();
+		$url = $this->discovery->LineupURL;
+		$this->lineup = json_decode(file_get_contents($url));
 	}
 }
 

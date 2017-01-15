@@ -14,7 +14,7 @@ switch ($_REQUEST['type']) {
 	break;
 	case 'lineup':
 		$h->get_channel_lineup();
-		echo $h->lineup->asXML();
+		echo json_encode($h->lineup);
 	break;
 	case 'set_channel':
 		$channel = $_REQUEST['channel'];
