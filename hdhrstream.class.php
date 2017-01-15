@@ -114,7 +114,7 @@ class HDHRStream {
 	function __construct() {
 		$this->discover_hdhr();
 		$this->vlc_base =  $this->vlc_base." -d --ignore-config --file-logging --logfile {$this->enc_log} --pidfile {$this->pidf} udp://@:{$this->target_port} --sout-avcodec-strict=-2";
-		$this->ffmpeg_base = 'nohup '.$this->ffmpeg_base.' -i "udp://@:5000" ##deinterlace## -y -analyzeduration 2000000 -threads '.$this->ffmpeg_threads.' -f image2 -s 480x270 -r 1/'.$this->thumb_update_interval.' -update 1 '.$this->stream['path'].'/stream.png ##ffmpeg_opts## > '.$this->enc_log.' 2>&1 & echo $! > '.$this->pidf;
+		$this->ffmpeg_base = 'nohup '.$this->ffmpeg_base.' -i "udp://@:5000?fifo_size=1000000&overrun_nonfatal=1" ##deinterlace## -y -threads '.$this->ffmpeg_threads.' -f image2 -s 480x270 -r 1/'.$this->thumb_update_interval.' -update 1 '.$this->stream['path'].'/stream.png ##ffmpeg_opts## > '.$this->enc_log.' 2>&1 & echo $! > '.$this->pidf;
 		if (!$this->stream['path'] = realpath($this->stream['path'])) die("Stream file output path {$this->stream['path']} does not exist.\n");
 	}
 
