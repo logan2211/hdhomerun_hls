@@ -6,21 +6,21 @@ class HDHRStream {
 	public $pidf = '/tmp/hdhrstream.pid';
 	public $enc_log = '/tmp/hdhrstream.log'; //truncated every time the stream restarts
 	public $enc_type = 'ffmpeg';
-	
+
 	public $ffmpeg_base = '/usr/bin/ffmpeg'; //path to ffmpeg binary. not needed if using vlc
 	public $ffmpeg_threads = 10;
 	public $ffmpeg_acodec = 'libfdk_aac';
 	public $thumb_update_interval = 5; //update stream.png thumbnail every 5 seconds. implemented in ffmpeg transcode ONLY
-	
+
 	public $vlc_base = "/usr/bin/vlc"; //path to VLC binary. not needed if using ffmpeg mode
 	public $vlc_acodec = 'mp4a';
-	
+
 	public $stream = array(
 		'path' => '/set/to/html/dir', //path to webserver where we store the stream files
 		'files' => 'stream-######.ts', //ffmpeg does not use this
 		'index' => 'stream.m3u8'
 	);
-	
+
 	public $hdhr_id = ''; //leave blank for autodiscovery. can be either mac address (hdhomerun_config discover), or the ip address of hdhr. FFFFFFFF is first discovered.
 	public $num_tuners = 3; //hdhomerun prime has 3 tuners
 	public $tuners_descending = false; //find available tuners starting from highest # first. Used to try to avoid conflicts with apps like mythtv which do not handle tuner sharing.
@@ -95,7 +95,7 @@ class HDHRStream {
 			'enabled' => false
 		)
 	);
-		
+
 	public $default_profile = array(
 		'vb' => '600',
 		'ab' => '64',
@@ -110,25 +110,25 @@ class HDHRStream {
 		//(seglen/(keyframs/fps)) should be integer so each segment starts with keyframe.
 		//info about keyframe rates: http://www.streamingmedia.com/Articles/ReadArticle.aspx?ArticleID=73017&PageNum=2
 	);
-	
+
 	function __construct() {
 		$this->discover_hdhr();
 		$this->vlc_base =  $this->vlc_base." -d --ignore-config --file-logging --logfile {$this->enc_log} --pidfile {$this->pidf} udp://@:{$this->target_port} --sout-avcodec-strict=-2";
 		$this->ffmpeg_base = 'nohup '.$this->ffmpeg_base.' -i "udp://@:5000" ##deinterlace## -y -analyzeduration 2000000 -threads '.$this->ffmpeg_threads.' -f image2 -s 480x270 -r 1/'.$this->thumb_update_interval.' -update 1 '.$this->stream['path'].'/stream.png ##ffmpeg_opts## > '.$this->enc_log.' 2>&1 & echo $! > '.$this->pidf;
 		if (!$this->stream['path'] = realpath($this->stream['path'])) die("Stream file output path {$this->stream['path']} does not exist.\n");
 	}
-	
+
 	function start_stream($channel) {
 		if (!is_numeric($channel)) throw new Exception('Channel must be numeric');
 		$pid = $this->check_enc_running();
 		if ($pid !== false) throw new Exception("Encoder already running in PID $pid");
-		
+
 		/*
 			streamopts must be pouplated with the following elements:
 			encoder => full command line for the encoder with all profile options and a pid output to pidf
 			vbr_playlist => built vbr playlist with paths to all playlists
 		*/
-		
+
 		switch($this->enc_type) {
 			case 'vlc':
 				$streamopts = $this->vlc_generate();
@@ -141,12 +141,12 @@ class HDHRStream {
 			break;
 		}
 		if (empty($streamopts)) throw new Exception("No encoder options were generated. Check enc_type config option.\n");
-		
+
 		file_put_contents($this->stream['path'].'/'.$this->stream['index'], $streamopts['vbr_playlist']);
-		
+
 		$this->tuner = $this->get_available_tuner();
 		if ($this->tuner === false) exit("No available tuners found!\n");
-		
+
 		$hdhr_id = escapeshellarg($this->hdhr_id);
 		$lockkey = escapeshellarg($this->lockkey);
 		$cmds = array(
@@ -186,7 +186,7 @@ class HDHRStream {
 		);
 		$vbr =& $return['vbr_playlist'];
 		$vlc =& $return['encoder'];
-		
+
 		$first_enc = true;
 		foreach ($this->profiles as $p) {
 			if ($p['enabled'] === false) continue;
@@ -201,7 +201,7 @@ class HDHRStream {
 	}
 	function vlc_generate_profile_options($p) {
 		$p = array_merge($this->default_profile, $p);
-		
+
 		$my_streamindex = $p['vb'].'-'.$this->stream['index'];
 		$my_streamfiles = $p['vb'].'-'.$this->stream['files'];
 		$v = array(
@@ -221,7 +221,7 @@ class HDHRStream {
 			'vbr_playlist' => "#EXTM3U\n"
 		);
 		$vbr =& $return['vbr_playlist'];
-		
+
 		//handle deinterlace
 		if ($this->default_profile['deinterlace'] === true) {
 			$deinterlace = '-vf yadif=0:-1:1'; //https://www.ffmpeg.org/ffmpeg-filters.html#yadif-1
@@ -229,7 +229,7 @@ class HDHRStream {
 			$deinterlace = '';
 		}
 		$return['encoder'] = str_replace('##deinterlace##', $deinterlace, $return['encoder']);
-		
+
 		$ffmpeg_profile_opts = '';
 		foreach ($this->profiles as $p) {
 			if ($p['enabled'] === false) continue;

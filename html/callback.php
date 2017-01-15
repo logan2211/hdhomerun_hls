@@ -20,7 +20,7 @@ switch ($_REQUEST['type']) {
 		$channel = $_REQUEST['channel'];
 		if ($_REQUEST['deinterlace'] == "true") $h->default_profile['deinterlace'] = true;
 		else $h->default_profile['deinterlace'] = false;
-		
+
 		foreach(json_decode($_REQUEST['profiles']) as $name => $enabled) {
 			if ($enabled == true) $h->profiles[$name]['enabled'] = true;
 			else $h->profiles[$name]['enabled'] = false;

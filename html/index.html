@@ -74,7 +74,7 @@
 		</div>
 		</form>
 	</div>
-	
+
 	<div data-role="content">
 		<div id="videocontainer" class="center-wrapper"></div>
 	</div>
@@ -91,30 +91,30 @@ jQuery(document).on('pageinit', function() {
 	var session = null;
 	var currentVolume = 0.5;
 	var currentMediaSession = null;
-	
+
 	jQuery.ajaxSetup({
 		url: 'callback.php',
 		type: 'POST',
 		dataType: 'json',
 		timeout: state_refresh_interval*1000
 	});
-	
+
 	//disable everything until we get our state
 	loading("show");
 	jQuery("#videocontainer").hide();
 	jQuery("#channel").selectmenu().selectmenu("disable");
 	jQuery("#togglevlc").flipswitch().flipswitch("disable");
 	jQuery("#advsettingsbtn").button().button("disable");
-	
+
 	jQuery("#advsettingsbtn").click(function () {
 		jQuery("div#advsettings").panel("open");
 	});
 	jQuery("#advsettingsclose").click(function () { jQuery("div#advsettings").panel("close")});
-	
+
 	update_channel_lineup();
 	update_profiles();
 	refresh_state();
-	
+
 	jQuery(".ui-flipswitch").on('click', function (e) {
 		loading("show");
 		if (streamstate == 'running') {
@@ -128,7 +128,7 @@ jQuery(document).on('pageinit', function() {
 		}
 		else if (streamstate == 'stopped') {
 			//need to start encoder
-			set_channel(jQuery('#channel').val());	
+			set_channel(jQuery('#channel').val());
 		}
 	});
 });
@@ -159,7 +159,7 @@ function set_channel(c) {
 		jQuery('#popup').popup("open");
 		return;
 	}
-	
+
 	var profiles = new Object;
 	jQuery('input:checkbox', '#profilecontainer').each(function(name) {
 		var name = jQuery(this).attr('id');
@@ -175,7 +175,7 @@ function set_channel(c) {
 
 	if (jQuery('#deinterlace').prop("checked") == true) var deinterlace = true;
 	else var deinterlace = false;
-	
+
 	jQuery.ajax({
 		data: { type: 'set_channel', channel: c, deinterlace: deinterlace, profiles: profiles },
 		complete: function (x,s) {
@@ -234,16 +234,16 @@ function destroy_video() {
 	videojs(player).dispose();
 }
 
-function init_video_stream() {	
+function init_video_stream() {
 	//we add the video sources with the full URL path so it can be chromecasted
 	var url = window.location.href.split('/');
 	var trash = url.pop();
 	url = url.join('/');
 	var streamurl = url+'/stream.m3u8';
 	var bannerurl = url+'/stream.png';
-	
+
 	jQuery("#videocontainer").html('<video width="640" height="360" id="stream" class="video-js vjs-default-skin" poster="'+bannerurl+'" controls><source src="'+streamurl+'" type="application/x-mpegURL"></source><p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p></video>');
-	
+
 	var player = videojs('stream', {
 		plugins: {
 			chromecast: {
@@ -254,7 +254,7 @@ function init_video_stream() {
 			}
 		}
 	});
-	
+
 	jQuery("#videocontainer").show();
 	loading("hide");
 }
